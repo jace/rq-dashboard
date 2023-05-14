@@ -53,24 +53,28 @@ from .legacy_config import upgrade_config
 from .version import VERSION as rq_dashboard_version
 
 
-blueprint = Blueprint(
-    "rq_dashboard", __name__, template_folder="templates", static_folder="static",
+class RQBlueprint(Blueprint):
+    """Subclass of Blueprint for registration setup."""
+
+    def register(self, app, options):
+        """Setup RQ config on registration with an app."""
+        super().register(app, options)
+        # we need to do It here instead of cli, since It may be embeded
+        upgrade_config(app)
+        # Getting Redis connection parameters for RQ
+        redis_url = app.config.get("RQ_DASHBOARD_REDIS_URL")
+        if isinstance(redis_url, string_types):
+            app.config["RQ_DASHBOARD_REDIS_URL"] = (redis_url,)
+            _, app.redis_conn = from_url((redis_url,)[0])
+        elif isinstance(redis_url, (tuple, list)):
+            _, app.redis_conn = from_url(redis_url[0])
+        else:
+            raise RuntimeError("No Redis configuration!")
+
+
+blueprint = RQBlueprint(
+    "rq_dashboard", __name__, template_folder="templates", static_folder="static"
 )
-
-
-@blueprint.before_app_first_request
-def setup_rq_connection():
-    # we need to do It here instead of cli, since It may be embeded
-    upgrade_config(current_app)
-    # Getting Redis connection parameters for RQ
-    redis_url = current_app.config.get("RQ_DASHBOARD_REDIS_URL")
-    if isinstance(redis_url, string_types):
-        current_app.config["RQ_DASHBOARD_REDIS_URL"] = (redis_url,)
-        _, current_app.redis_conn = from_url((redis_url,)[0])
-    elif isinstance(redis_url, (tuple, list)):
-        _, current_app.redis_conn = from_url(redis_url[0])
-    else:
-        raise RuntimeError("No Redis configuration!")
 
 
 @blueprint.before_request
