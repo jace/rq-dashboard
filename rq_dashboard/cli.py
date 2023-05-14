@@ -37,6 +37,9 @@ def make_flask_app(config, username, password, url_prefix, compatibility_mode=Tr
     # Start configuration with our built in defaults.
     app.config.from_object(default_settings)
 
+    # Override with config from env
+    app.config.from_prefixed_env()
+
     # Override with any settings in config file, if given.
     if config:
         app.config.from_object(importlib.import_module(config))
